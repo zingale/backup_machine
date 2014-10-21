@@ -11,60 +11,31 @@ import os
 import datetime
 import shutil
 import smtplib
+import ConfigParser
+import argparse
 from email.mime.text import MIMEText
 
 
-#----------------------------------------------------------------------------
-# USER EDITS -- edit the following to customize your backup
+class Backup:
+    """ a simple container class to hold the main information about 
+        the backup """
+    def __init__(self, root, prefix, nstore, 
+                 email_sender, email_receiver):
+        
+        self.root = root
+        self.prefix = prefix
+        
+        self.nstore = int(nstore)
 
-# list of directories to backup -- add any directory names here, in
-# quotes, relative to your home directory
-dirs = ['bin',
-        'papers',
-        'software']
+        self.sender = email_sender
+        self.receiver = email_receiver
 
-# individual files to backup
-files = ["myfile"]
-
-# home directory -- this is where the dirs live.  Change this to your
-# home directory.  Avoid using the '~' -- write out the whole
-# directory
-backup_home = '/home/username'
-
-# root directory to place the backup -- this should be on a separate
-# disk mounted on the local machine.  Make sure this directory exists
-backup_root = '/raid/backup/auto/'
+        dt = datetime.datetime.now()
+        self.date = str(dt.replace(second=0, microsecond=0)).replace(" ", "_")
 
 
-# backup prefix name -- this will be prepended to the date for each
-# backup stored
-backup_prefix = "my-backup-"
-
-
-# number of old backups to store
-NSTORE = 3
-
-# info for e-mailing results -- edit these to have your e-mail
-# address.  Note: you must make sure your local machine is capable of
-# sending mail.
-sender = "your e-mail address here"
-receiver = "your e-mail address here"
-
-subjectPass = "Output from backup-machine.py"
-subjectFail = "ERROR from backup-machine.py"
-
-outMsg = \
-"""
-Output from backup-machine.py
-
-"""
-
-# END OF USER EDITS
-#-----------------------------------------------------------------------------
-
-
-# a simple logging facility
-class log:
+class Log:
+    """ a simple logging facility """
     def __init__(self, str=""):
         self.str = str
 
@@ -74,9 +45,9 @@ class log:
         self.str += str
 
 
-# send an e-mail with the results
-def report(myStr, subject):
-    msg = MIMEText(myStr)
+def report(body, subject, sender, receiver):
+    """ send an email """
+    msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From'] = sender
     msg['To'] = receiver
@@ -88,117 +59,187 @@ def report(myStr, subject):
         sys.exit("ERROR sending mail")
 
 
+def do_backup(infile, simulate=False):
+
+    # parse the input file
+    cp = ConfigParser.ConfigParser()
+    cp.optionxform = str
+    cp.read(infile)
 
 
-# log the output
-backupLog = log(outMsg)
+    # store the list of files and directories we will backup
+
+    # in each dictionary, the key is the root directory to copy from and the 
+    # list it indexes is the list of files/directories under that root to copy
+    dirs = {}
+    files = {}
+
+    for sec in cp.sections():
+
+        if sec == "main":
+
+            # defaults
+            root = "/backup"
+            prefix = "my-backup-"
+            nstore = 3
+            email_sender = "root"
+            email_receiver = "root"
+        
+            for opt in cp.options("main"):
+                if opt == "root":
+                    root = cp.get(sec, opt)
+                elif opt == "prefix":
+                    prefix = cp.get(sec, opt)
+                elif opt == "nstore":
+                    nstore = cp.get(sec, opt)
+                elif opt == "email_sender":
+                    email_sender = cp.get(sec, opt)
+                elif opt == "email_receiver":
+                    email_receiver = cp.get(sec, opt)
+                else:
+                    sys.exit("invalid option in [main]")
+
+                bo = Backup(root, prefix, nstore, 
+                            email_sender, email_receiver)
+        else:
+
+            for opt in cp.options(sec):
+                value = cp.get(sec, opt)
+
+                if opt == "files":
+                    flist = [f.strip() for f in value.split(',')]            
+                    files[sec] = flist
+                    
+                if opt == "dirs":
+                    dlist = [d.strip() for d in value.split(',')]            
+                    dirs[sec] = dlist
 
 
-# make sure that the output directory exists and if so, get all the
-# subdirectories in it
-try: oldDirs = os.listdir(backup_root)
-except:
-    backupLog.log("destination directory is not readable/doesn't exist\n")
-    report(backupLog.str,subjectFail)
-    sys.exit("directory not readable")
+    # log the output
+    outMsg = "Output from backup-machine.py, inputs file: {}\n".format(infile)
 
+    blog = Log(outMsg)
 
-# how many existing backups are in that directory?
-backupDirs = []
-for dir in oldDirs:
-    if (dir.startswith(backup_prefix) and 
-        os.path.isdir(backup_root + '/' + dir)):
-        backupDirs.append(dir)
-
-backupDirs.sort()
-backupDirs.reverse()
-
-
-# backupDirs now contains a list of all the currently stored backups.
-# The most recent backups are at the start of the list.
-print "currently stored backups: "
-n = 0
-while (n < len(backupDirs)):
-    print backupDirs[n]
-    n += 1
-
-
-# get ready for the new backups
-dt = datetime.datetime.now()
-backup_date = str(dt.replace(second=0, microsecond=0)).replace(" ", "_")
-
-backup_dest = os.path.normpath(backup_root) + '/' + backup_prefix + backup_date
-
-try: os.mkdir(backup_dest)
-except: 
-    backupLog.log("error making directory\n")
-    report(backupLog.str,subjectFail)
-    sys.exit("Error making dir")
-
-
-backupLog.log("writing to: %s\n\n" % (backup_dest) )
-
-failure = 0
-
-for d in dirs:
-
-    backupLog.log("copying %s ..." % (d) )
-
-    try: shutil.copytree(os.path.normpath(backup_home) + '/' + d, 
-                         os.path.normpath(backup_dest) + '/' + d, 
-                         symlinks=True)
+    # make sure that the output directory exists and if so, get all the
+    # subdirectories in it
+    try: old_dirs = os.listdir(bo.root)
     except:
-        backupLog.log("ERROR copying\n")
-        backupLog.log("aborting\n")
-        failure = 1
-        break
+        blog.log("destination directory is not readable/doesn't exist\n")
+        report(blog.str, subjectFail, bo.sender, bo.receiver)
+        sys.exit("directory not readable")
+
+
+    # how many existing backups are in that directory?
+    backup_dirs = []
+    for dir in old_dirs:
+        if (dir.startswith(bo.prefix) and 
+            os.path.isdir(bo.root + '/' + dir)):
+            backup_dirs.append(dir)
+
+    backup_dirs.sort()
+    backup_dirs.reverse()
+
+
+    # backup_dirs now contains a list of all the currently stored backups.
+    # The most recent backups are at the start of the list.
+    print "currently stored backups: "
+    for n in range(len(backup_dirs)):
+        print backup_dirs[n]
+
+
+    # get ready for the new backups
+    backup_dest = os.path.normpath(bo.root) + '/' + bo.prefix + bo.date
     
+    if not simulate:
+        try: os.mkdir(backup_dest)
+        except: 
+            blog.log("error making directory\n")
+            report(blog.str, subjectFail, bo.sender, bo.receiver)
+            sys.exit("Error making dir")
     else:
-        backupLog.log(" done\n")
-
-backupLog.log("\n")
-backupLog.log("done with directories\n")
-
-for f in files:
-
-    backupLog.log("copying %s ..." % (f) )
-
-    try: shutil.copy(os.path.normpath(backup_home) + '/' + f,
-                     os.path.normpath(backup_dest) + '/' + f)
-    except:
-        backupLog.log("ERROR copying\n")
-        backupLog.log("aborting\n")
-        failure = 1
-        break
-
-    else:
-        backupLog.log(" done\n")
-
-backupLog.log("done with individual files\n")
-
-backupLog.log("done!\n")
+        blog.log("mkdir {}\n".format(backup_dest))
 
 
-# if we were successful, then remove any old backups, as necessary
-if (not failure):
+    blog.log("writing to: %s\n\n" % (backup_dest) )
 
-    # keep in mind that we just stored another backup
-    if (len(backupDirs) > NSTORE-1):
-        n = NSTORE-1
+    failure = 0
 
-        while (n < len(backupDirs)):
-            rmDir = backup_root + '/' + backupDirs[n]
+    # backup all the directories
+    for root_dir in dirs.keys():
+        for d in dirs[root_dir]:
 
-            backupLog.log("removing old backup: %s\n" % (rmDir) )
+            blog.log("copying {}/{} ...\n".format(root_dir, d))
 
-            try: shutil.rmtree(rmDir)
-            except:
-                backupLog.log("ERROR removing %s\n" % (rmDir) )
+            if not simulate:
+                 try: shutil.copytree(os.path.normpath(root_dir) + '/' + d, 
+                                      os.path.normpath(backup_dest) + '/' + d, 
+                                      symlinks=True)
+                 except:
+                     blog.log("ERROR copying\n")
+                     blog.log("aborting\n")
+                     failure = 1
+                     break
+    
+    blog.log("done with directories\n\n")
+
+    # backup all the files
+    for root_dir in files.keys():
+        for f in files[root_dir]:
+
+            blog.log("copying {}/{} ...\n".format(root_dir, f))
+
+            if not simulate:
+                try: shutil.copy(os.path.normpath(root_dir) + '/' + f,
+                                 os.path.normpath(backup_dest) + '/' + f)
+                except:
+                    blog.log("ERROR copying\n")
+                    blog.log("aborting\n")
+                    failure = 1
+                    break
+
+    blog.log("done with individual files\n\n")
+
+
+    # if we were successful, then remove any old backups, as necessary
+    if not failure:
+
+        # keep in mind that we just stored another backup
+        if len(backup_dirs) > bo.nstore-1:
+            n = bo.nstore-1
+
+            while n < len(backup_dirs):
+                rmDir = bo.root + '/' + backup_dirs[n]
+
+                blog.log("removing old backup: %s\n" % (rmDir) )
+
+                if not simulate:
+                    try: shutil.rmtree(rmDir)
+                    except:
+                        blog.log("ERROR removing %s\n" % (rmDir) )
             
-            n += 1
+                n += 1
+
+        subject = "summary from backup-machine.py, infile: {}".format(infile)
+
+    else:  
+        subject = "ERROR from backup-machine.py, infile: {}".format(infile)
 
 
-if not failure:
-    report(backupLog.str,subjectPass)
-else:
-    report(backupLog.str,subjectFail)
+    report(blog.str, subject, bo.sender, bo.receiver)
+
+
+if __name__ == "__main__":
+
+    # parse any runtime options
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s",
+                        help="don't do any copies, just output the steps that would be done", 
+                        action="store_true")
+    parser.add_argument("inputfile", metavar="inputfile", type=str, nargs=1,
+                        help="the input file specifying the backup configuration")
+
+    args = parser.parse_args()
+
+    do_backup(args.inputfile[0], simulate=args.s)
+
+

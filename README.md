@@ -6,7 +6,7 @@ different disk in the computer).  The number of copies to store can be
 set.  An e-mail is sent when the copy is completed.
 
 The details of the backup are specified in an inputs file (see the 
-sample `example.ini`.  This follows the INI format.  In particular,
+sample `example.ini`).  This follows the INI format.  In particular,
 root directories are given a heading in `[...]` and the list of 
 subdirectories and files under the root to be copied are 
 listed with the `files = ` and `dirs = ` options.  E.g.:

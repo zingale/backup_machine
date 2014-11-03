@@ -168,10 +168,15 @@ def do_backup(infile, simulate=False):
     for root_dir in dirs.keys():
         for d in dirs[root_dir]:
 
-            blog.log("copying {}/{} ...\n".format(root_dir, d))
+            mydir = os.path.normpath(root_dir) + '/' + d
+            if not os.path.isdir(mydir):
+                blog.log("WARNING: directory {} does not exist... skipping.\n".format(mydir))
+                continue
+            else:
+                blog.log("copying {}/{} ...\n".format(root_dir, d))
 
             if not simulate:
-                 try: shutil.copytree(os.path.normpath(root_dir) + '/' + d, 
+                 try: shutil.copytree(mydir,
                                       os.path.normpath(backup_dest) + '/' + d, 
                                       symlinks=True)
                  except:
@@ -186,10 +191,15 @@ def do_backup(infile, simulate=False):
     for root_dir in files.keys():
         for f in files[root_dir]:
 
-            blog.log("copying {}/{} ...\n".format(root_dir, f))
+            myfile = os.path.normpath(root_dir) + '/' + f
+            if not os.path.isfile(myfile):
+                blog.log("WARNING: file {} does not exist... skipping.\n".format(myfile))
+                continue
+            else:
+                blog.log("copying {}/{} ...\n".format(root_dir, f))
 
             if not simulate:
-                try: shutil.copy(os.path.normpath(root_dir) + '/' + f,
+                try: shutil.copy(myfile,
                                  os.path.normpath(backup_dest) + '/' + f)
                 except:
                     blog.log("ERROR copying\n")

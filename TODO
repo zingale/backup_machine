@@ -4,8 +4,3 @@
    backup and then a string of failures, and then was successful
    again, we would delete the last successful backup.
 
--- we should check whether the directories we are requesting backups
-   of are valid, if not, we should continue to the next directory.
-   Now we abort with a failure.  While this is a failure, it is not as
-   critical as the copy itself failing, so we should treat those
-   differently.

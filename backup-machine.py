@@ -17,14 +17,14 @@ from email.mime.text import MIMEText
 
 
 class Backup:
-    """ a simple container class to hold the main information about 
+    """ a simple container class to hold the main information about
         the backup """
-    def __init__(self, root, prefix, nstore, 
+    def __init__(self, root, prefix, nstore,
                  email_sender, email_receiver):
-        
+
         self.root = root
         self.prefix = prefix
-        
+
         self.nstore = int(nstore)
 
         self.sender = email_sender
@@ -69,7 +69,7 @@ def do_backup(infile, simulate=False):
 
     # store the list of files and directories we will backup
 
-    # in each dictionary, the key is the root directory to copy from and the 
+    # in each dictionary, the key is the root directory to copy from and the
     # list it indexes is the list of files/directories under that root to copy
     dirs = {}
     files = {}
@@ -84,7 +84,7 @@ def do_backup(infile, simulate=False):
             nstore = 3
             email_sender = "root"
             email_receiver = "root"
-        
+
             for opt in cp.options("main"):
                 if opt == "root":
                     root = cp.get(sec, opt)
@@ -99,7 +99,7 @@ def do_backup(infile, simulate=False):
                 else:
                     sys.exit("invalid option in [main]")
 
-                bo = Backup(root, prefix, nstore, 
+                bo = Backup(root, prefix, nstore,
                             email_sender, email_receiver)
         else:
 
@@ -107,11 +107,11 @@ def do_backup(infile, simulate=False):
                 value = cp.get(sec, opt)
 
                 if opt == "files":
-                    flist = [f.strip() for f in value.split(',')]            
+                    flist = [f.strip() for f in value.split(',')]
                     files[sec] = flist
-                    
+
                 if opt == "dirs":
-                    dlist = [d.strip() for d in value.split(',')]            
+                    dlist = [d.strip() for d in value.split(',')]
                     dirs[sec] = dlist
 
 
@@ -132,7 +132,7 @@ def do_backup(infile, simulate=False):
     # how many existing backups are in that directory?
     backup_dirs = []
     for dir in old_dirs:
-        if (dir.startswith(bo.prefix) and 
+        if (dir.startswith(bo.prefix) and
             os.path.isdir(bo.root + '/' + dir)):
             backup_dirs.append(dir)
 
@@ -149,10 +149,10 @@ def do_backup(infile, simulate=False):
 
     # get ready for the new backups
     backup_dest = os.path.normpath(bo.root) + '/' + bo.prefix + bo.date
-    
+
     if not simulate:
         try: os.mkdir(backup_dest)
-        except: 
+        except:
             blog.log("error making directory\n")
             report(blog.str, subjectFail, bo.sender, bo.receiver)
             sys.exit("Error making dir")
@@ -177,14 +177,14 @@ def do_backup(infile, simulate=False):
 
             if not simulate:
                  try: shutil.copytree(mydir,
-                                      os.path.normpath(backup_dest) + '/' + d, 
+                                      os.path.normpath(backup_dest) + '/' + d,
                                       symlinks=True)
                  except:
                      blog.log("ERROR copying\n")
                      blog.log("aborting\n")
                      failure = 1
                      break
-    
+
     blog.log("done with directories\n\n")
 
     # backup all the files
@@ -226,12 +226,13 @@ def do_backup(infile, simulate=False):
                     try: shutil.rmtree(rmDir)
                     except:
                         blog.log("ERROR removing %s\n" % (rmDir) )
-            
+
                 n += 1
 
         subject = "summary from backup-machine.py, infile: {}".format(infile)
-
-    else:  
+        if simulate:
+            subject = "[simulate] " + subject
+    else:
         subject = "ERROR from backup-machine.py, infile: {}".format(infile)
 
 
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     # parse any runtime options
     parser = argparse.ArgumentParser()
     parser.add_argument("-s",
-                        help="don't do any copies, just output the steps that would be done", 
+                        help="don't do any copies, just output the steps that would be done",
                         action="store_true")
     parser.add_argument("inputfile", metavar="inputfile", type=str, nargs=1,
                         help="the input file specifying the backup configuration")
@@ -251,5 +252,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     do_backup(args.inputfile[0], simulate=args.s)
-
-

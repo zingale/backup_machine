@@ -180,7 +180,7 @@ def do_backup(infile, simulate=False):
                                       os.path.normpath(backup_dest) + '/' + d,
                                       symlinks=True)
                  except:
-                     blog.log("ERROR copying\n")
+                     blog.log("ERROR copying {}\n".format(mydir))
                      blog.log("aborting\n")
                      failure = 1
                      break

@@ -168,7 +168,7 @@ def do_backup(infile, simulate=False):
     for root_dir in dirs.keys():
         for d in dirs[root_dir]:
 
-            mydir = os.path.normpath(root_dir) + '/' + d
+            mydir = os.path.normpath(root_dir + '/' + d)
             if not os.path.isdir(mydir):
                 blog.log("WARNING: directory {} does not exist... skipping.\n".format(mydir))
                 continue
@@ -191,7 +191,7 @@ def do_backup(infile, simulate=False):
     for root_dir in files.keys():
         for f in files[root_dir]:
 
-            myfile = os.path.normpath(root_dir) + '/' + f
+            myfile = os.path.normpath(root_dir + '/' + f)
             if not os.path.isfile(myfile):
                 blog.log("WARNING: file {} does not exist... skipping.\n".format(myfile))
                 continue

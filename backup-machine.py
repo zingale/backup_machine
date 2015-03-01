@@ -173,7 +173,7 @@ def do_backup(infile, simulate=False):
                 blog.log("WARNING: directory {} does not exist... skipping.\n".format(mydir))
                 continue
             else:
-                blog.log("copying {}/{} ...\n".format(root_dir, d))
+                blog.log("copying {} ...\n".format(mydir))
 
             if not simulate:
                  try: shutil.copytree(mydir,

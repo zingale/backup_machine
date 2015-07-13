@@ -55,7 +55,7 @@ def report(body, subject, sender, receiver):
     try:
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(sender, receiver, msg.as_string())
-    except SMTPException:
+    except smtplib.SMTPException:
         sys.exit("ERROR sending mail")
 
 

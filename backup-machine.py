@@ -6,6 +6,8 @@
 #
 # (use at your own risk...)
 
+from __future__ import print_function
+
 import sys
 import os
 import datetime
@@ -15,8 +17,9 @@ import ConfigParser
 import argparse
 from email.mime.text import MIMEText
 
+SUBJECT_FAIL = "ERROR in backup_machine.py"
 
-class Backup:
+class Backup(object):
     """ a simple container class to hold the main information about
         the backup """
     def __init__(self, root, prefix, nstore,
@@ -34,15 +37,15 @@ class Backup:
         self.date = str(dt.replace(second=0, microsecond=0)).replace(" ", "_")
 
 
-class Log:
+class Log(object):
     """ a simple logging facility """
-    def __init__(self, str=""):
-        self.str = str
+    def __init__(self, ostr=""):
+        self.ostr = ostr
 
-    def log(self, str):
-        print str,
+    def log(self, ostr):
+        print(ostr,)
         sys.stdout.flush()
-        self.str += str
+        self.ostr += ostr
 
 
 def report(body, subject, sender, receiver):
@@ -53,8 +56,8 @@ def report(body, subject, sender, receiver):
     msg['To'] = receiver
 
     try:
-        smtpObj = smtplib.SMTP('localhost')
-        smtpObj.sendmail(sender, receiver, msg.as_string())
+        email = smtplib.SMTP('localhost')
+        email.sendmail(sender, receiver, msg.as_string())
     except smtplib.SMTPException:
         sys.exit("ERROR sending mail")
 
@@ -125,16 +128,13 @@ def do_backup(infile, simulate=False):
     try: old_dirs = os.listdir(bo.root)
     except:
         blog.log("destination directory is not readable/doesn't exist\n")
-        report(blog.str, subjectFail, bo.sender, bo.receiver)
+        report(blog.ostr, SUBJECT_FAIL, bo.sender, bo.receiver)
         sys.exit("directory not readable")
 
 
     # how many existing backups are in that directory?
-    backup_dirs = []
-    for dir in old_dirs:
-        if (dir.startswith(bo.prefix) and
-            os.path.isdir(bo.root + '/' + dir)):
-            backup_dirs.append(dir)
+    backup_dirs = [o for o in old_dirs if o.startswith(bo.prefix) and
+                   os.path.isdir("{}/{}".format(bo.root, o))]
 
     backup_dirs.sort()
     backup_dirs.reverse()
@@ -142,10 +142,9 @@ def do_backup(infile, simulate=False):
 
     # backup_dirs now contains a list of all the currently stored backups.
     # The most recent backups are at the start of the list.
-    print "currently stored backups: "
-    for n in range(len(backup_dirs)):
-        print backup_dirs[n]
-
+    print("currently stored backups: ")
+    for bdir in backup_dirs:
+        print(bdir)
 
     # get ready for the new backups
     backup_dest = os.path.normpath(bo.root) + '/' + bo.prefix + bo.date
@@ -154,13 +153,13 @@ def do_backup(infile, simulate=False):
         try: os.mkdir(backup_dest)
         except:
             blog.log("error making directory\n")
-            report(blog.str, subjectFail, bo.sender, bo.receiver)
+            report(blog.ostr, SUBJECT_FAIL, bo.sender, bo.receiver)
             sys.exit("Error making dir")
     else:
         blog.log("mkdir {}\n".format(backup_dest))
 
 
-    blog.log("writing to: %s\n\n" % (backup_dest) )
+    blog.log("writing to: {}\n\n".format(backup_dest))
 
     failure = 0
 
@@ -176,14 +175,14 @@ def do_backup(infile, simulate=False):
                 blog.log("copying {} ...\n".format(mydir))
 
             if not simulate:
-                 try: shutil.copytree(mydir,
-                                      os.path.normpath(backup_dest) + '/' + d,
-                                      symlinks=True)
-                 except:
-                     blog.log("ERROR copying {}\n".format(mydir))
-                     blog.log("aborting\n")
-                     failure = 1
-                     break
+                try: shutil.copytree(mydir,
+                                     os.path.normpath(backup_dest) + '/' + d,
+                                     symlinks=True)
+                except:
+                    blog.log("ERROR copying {}\n".format(mydir))
+                    blog.log("aborting\n")
+                    failure = 1
+                    break
 
     blog.log("done with directories\n\n")
 
@@ -215,19 +214,15 @@ def do_backup(infile, simulate=False):
 
         # keep in mind that we just stored another backup
         if len(backup_dirs) > bo.nstore-1:
-            n = bo.nstore-1
+            for n in range(bo.nstore-1, len(backup_dirs)):
+                rm_dir = bo.root + '/' + backup_dirs[n]
 
-            while n < len(backup_dirs):
-                rmDir = bo.root + '/' + backup_dirs[n]
-
-                blog.log("removing old backup: %s\n" % (rmDir) )
+                blog.log("removing old backup: {}\n".format(rm_dir))
 
                 if not simulate:
-                    try: shutil.rmtree(rmDir)
+                    try: shutil.rmtree(rm_dir)
                     except:
-                        blog.log("ERROR removing %s\n" % (rmDir) )
-
-                n += 1
+                        blog.log("ERROR removing {}\n".format(rm_dir))
 
         subject = "summary from backup-machine.py, infile: {}".format(infile)
         if simulate:
@@ -236,7 +231,7 @@ def do_backup(infile, simulate=False):
         subject = "ERROR from backup-machine.py, infile: {}".format(infile)
 
 
-    report(blog.str, subject, bo.sender, bo.receiver)
+    report(blog.ostr, subject, bo.sender, bo.receiver)
 
 
 if __name__ == "__main__":

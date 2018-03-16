@@ -8,14 +8,18 @@
 
 from __future__ import print_function
 
+import argparse
+from email.mime.text import MIMEText
 import sys
 import os
 import datetime
 import shutil
 import smtplib
-import ConfigParser
-import argparse
-from email.mime.text import MIMEText
+if sys.version_info[0] < 3:
+    import ConfigParser as cparse
+else:
+    import configparser as cparse
+
 
 SUBJECT_FAIL = "ERROR in backup_machine.py"
 
@@ -63,9 +67,11 @@ def report(body, subject, sender, receiver):
 
 
 def do_backup(infile, simulate=False):
+    """the main backup function.  The simulate option goes through the
+    motions and outputs what would be done without executing"""
 
     # parse the input file
-    cp = ConfigParser.ConfigParser()
+    cp = cparse.ConfigParser()
     cp.optionxform = str
     cp.read(infile)
 
@@ -119,13 +125,14 @@ def do_backup(infile, simulate=False):
 
 
     # log the output
-    outMsg = "Output from backup-machine.py, inputs file: {}\n".format(infile)
+    out_msg = "Output from backup-machine.py, inputs file: {}\n".format(infile)
 
-    blog = Log(outMsg)
+    blog = Log(out_msg)
 
     # make sure that the output directory exists and if so, get all the
     # subdirectories in it
-    try: old_dirs = os.listdir(bo.root)
+    try:
+        old_dirs = os.listdir(bo.root)
     except:
         blog.log("destination directory is not readable/doesn't exist\n")
         report(blog.ostr, SUBJECT_FAIL, bo.sender, bo.receiver)
@@ -150,7 +157,8 @@ def do_backup(infile, simulate=False):
     backup_dest = os.path.normpath(bo.root) + '/' + bo.prefix + bo.date
 
     if not simulate:
-        try: os.mkdir(backup_dest)
+        try:
+            os.mkdir(backup_dest)
         except:
             blog.log("error making directory\n")
             report(blog.ostr, SUBJECT_FAIL, bo.sender, bo.receiver)
@@ -175,9 +183,10 @@ def do_backup(infile, simulate=False):
                 blog.log("copying {} ...\n".format(mydir))
 
             if not simulate:
-                try: shutil.copytree(mydir,
-                                     os.path.normpath(backup_dest) + '/' + d,
-                                     symlinks=True)
+                try:
+                    shutil.copytree(mydir,
+                                    os.path.normpath(backup_dest) + '/' + d,
+                                    symlinks=True)
                 except:
                     blog.log("ERROR copying {}\n".format(mydir))
                     blog.log("aborting\n")
@@ -198,8 +207,9 @@ def do_backup(infile, simulate=False):
                 blog.log("copying {}/{} ...\n".format(root_dir, f))
 
             if not simulate:
-                try: shutil.copy(myfile,
-                                 os.path.normpath(backup_dest) + '/' + f)
+                try:
+                    shutil.copy(myfile,
+                                os.path.normpath(backup_dest) + '/' + f)
                 except:
                     blog.log("ERROR copying\n")
                     blog.log("aborting\n")
@@ -207,7 +217,6 @@ def do_backup(infile, simulate=False):
                     break
 
     blog.log("done with individual files\n\n")
-
 
     # if we were successful, then remove any old backups, as necessary
     if not failure:
@@ -220,7 +229,8 @@ def do_backup(infile, simulate=False):
                 blog.log("removing old backup: {}\n".format(rm_dir))
 
                 if not simulate:
-                    try: shutil.rmtree(rm_dir)
+                    try:
+                        shutil.rmtree(rm_dir)
                     except:
                         blog.log("ERROR removing {}\n".format(rm_dir))
 

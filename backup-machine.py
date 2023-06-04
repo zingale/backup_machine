@@ -6,7 +6,6 @@
 #
 # (use at your own risk...)
 
-from __future__ import print_function
 
 import argparse
 from email.mime.text import MIMEText
@@ -15,15 +14,11 @@ import os
 import datetime
 import shutil
 import smtplib
-if sys.version_info[0] < 3:
-    import ConfigParser as cparse
-else:
-    import configparser as cparse
-
+import configparser as cparse
 
 SUBJECT_FAIL = "ERROR in backup_machine.py"
 
-class Backup(object):
+class Backup:
     """ a simple container class to hold the main information about
         the backup """
     def __init__(self, root, prefix, nstore,
@@ -41,7 +36,7 @@ class Backup(object):
         self.date = str(dt.replace(second=0, microsecond=0)).replace(" ", "_")
 
 
-class Log(object):
+class Log:
     """ a simple logging facility """
     def __init__(self, ostr=""):
         self.ostr = ostr
@@ -125,7 +120,7 @@ def do_backup(infile, simulate=False):
 
 
     # log the output
-    out_msg = "Output from backup-machine.py, inputs file: {}\n".format(infile)
+    out_msg = f"Output from backup-machine.py, inputs file: {infile}\n"
 
     blog = Log(out_msg)
 
@@ -141,7 +136,7 @@ def do_backup(infile, simulate=False):
 
     # how many existing backups are in that directory?
     backup_dirs = [o for o in old_dirs if o.startswith(bo.prefix) and
-                   os.path.isdir("{}/{}".format(bo.root, o))]
+                   os.path.isdir(f"{bo.root}/{o}")]
 
     backup_dirs.sort()
     backup_dirs.reverse()
@@ -164,23 +159,23 @@ def do_backup(infile, simulate=False):
             report(blog.ostr, SUBJECT_FAIL, bo.sender, bo.receiver)
             sys.exit("Error making dir")
     else:
-        blog.log("mkdir {}\n".format(backup_dest))
+        blog.log(f"mkdir {backup_dest}\n")
 
 
-    blog.log("writing to: {}\n\n".format(backup_dest))
+    blog.log(f"writing to: {backup_dest}\n\n")
 
     failure = 0
 
     # backup all the directories
-    for root_dir in dirs.keys():
+    for root_dir in dirs:
         for d in dirs[root_dir]:
 
             mydir = os.path.normpath(root_dir + '/' + d)
             if not os.path.isdir(mydir):
-                blog.log("WARNING: directory {} does not exist... skipping.\n".format(mydir))
+                blog.log(f"WARNING: directory {mydir} does not exist... skipping.\n")
                 continue
-            else:
-                blog.log("copying {} ...\n".format(mydir))
+
+            blog.log(f"copying {mydir} ...\n")
 
             if not simulate:
                 try:
@@ -188,7 +183,7 @@ def do_backup(infile, simulate=False):
                                     os.path.normpath(backup_dest) + '/' + d,
                                     symlinks=True)
                 except:
-                    blog.log("ERROR copying {}\n".format(mydir))
+                    blog.log(f"ERROR copying {mydir}\n")
                     blog.log("aborting\n")
                     failure = 1
                     break
@@ -201,10 +196,10 @@ def do_backup(infile, simulate=False):
 
             myfile = os.path.normpath(root_dir + '/' + f)
             if not os.path.isfile(myfile):
-                blog.log("WARNING: file {} does not exist... skipping.\n".format(myfile))
+                blog.log(f"WARNING: file {myfile} does not exist... skipping.\n")
                 continue
-            else:
-                blog.log("copying {}/{} ...\n".format(root_dir, f))
+
+            blog.log(f"copying {root_dir}/{f} ...\n")
 
             if not simulate:
                 try:
@@ -226,19 +221,19 @@ def do_backup(infile, simulate=False):
             for n in range(bo.nstore-1, len(backup_dirs)):
                 rm_dir = bo.root + '/' + backup_dirs[n]
 
-                blog.log("removing old backup: {}\n".format(rm_dir))
+                blog.log(f"removing old backup: {rm_dir}\n")
 
                 if not simulate:
                     try:
                         shutil.rmtree(rm_dir)
                     except:
-                        blog.log("ERROR removing {}\n".format(rm_dir))
+                        blog.log(f"ERROR removing {rm_dir}\n")
 
-        subject = "summary from backup-machine.py, infile: {}".format(infile)
+        subject = f"summary from backup-machine.py, infile: {infile}"
         if simulate:
             subject = "[simulate] " + subject
     else:
-        subject = "ERROR from backup-machine.py, infile: {}".format(infile)
+        subject = f"ERROR from backup-machine.py, infile: {infile}"
 
 
     report(blog.ostr, subject, bo.sender, bo.receiver)
